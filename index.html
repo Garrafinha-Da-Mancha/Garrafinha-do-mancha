@@ -1389,11 +1389,13 @@
       const isOpen = state.config.statusMode === 'open' || (state.config.statusMode === 'auto' && h >= state.config.openingHours.start && h < state.config.openingHours.end);
       if (!isOpen) { window.toast("Loja fechada no momento!", "error"); return; }
 
-      const name = document.getElementById('client-name').value;
-      const phone = document.getElementById('client-phone').value;
+      const name = document.getElementById('client-name').value.trim();
+      const phone = document.getElementById('client-phone').value.trim();
       const payment = document.getElementById('payment-method').value;
-      const address = state.deliveryType === 'Entrega' ? document.getElementById('client-address').value : 'Retirada no balcao';
+      const address = state.deliveryType === 'Entrega' ? document.getElementById('client-address').value.trim() : 'Retirada no balcão';
       const total = document.getElementById('cart-total').innerText;
+
+      if (!name || !phone || !payment) { window.toast("Preencha todos os campos!", "error"); return; }
 
       const orderData = {
         id: Date.now(), client: name, phone, payment,
@@ -1401,22 +1403,51 @@
         items: state.cart.map(i => ({name: i.name, qty: i.qty, obs: i.obs, price: i.price})),
         total, status: 'novo', createdAt: new Date().toISOString()
       };
+
+      // Feedback visual de carregamento
+      const btn = document.getElementById('btn-checkout');
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Enviando...';
+      window.refreshIcons();
+
       try {
         if (isFirebaseConfigured && db) {
           const { collection, addDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
           await addDoc(collection(db, 'pedidos'), orderData);
-        } else { throw 'offline'; }
+        } else {
+          // Fallback Local se estiver sem Firebase
+          const local = JSON.parse(localStorage.getItem('acai_orders')||'[]');
+          local.unshift(orderData); localStorage.setItem('acai_orders', JSON.stringify(local.slice(0,50)));
+        }
       } catch(e) {
+        console.warn("Erro ao salvar pedido no banco, continuando para o WhatsApp...");
         const local = JSON.parse(localStorage.getItem('acai_orders')||'[]');
         local.unshift(orderData); localStorage.setItem('acai_orders', JSON.stringify(local.slice(0,50)));
       }
 
-      let msg = `\ud83d\udfe3 *PEDIDO - GARRAFINHA DO MANCHA*\n\ud83d\udc64 *Cliente:* ${name}\n\ud83d\udcb3 *Pagamento:* ${payment}\n`;
-      if (state.deliveryType === 'Entrega') msg += `\ud83c\udfe0 *Endereco:* ${address}\n`;
-      msg += `\n*ITENS:*\n` + state.cart.map(i => `- ${i.qty}x ${i.name} (${i.obs})`).join("\n");
-      msg += `\n\n\ud83d\udcb0 *TOTAL: ${total}*`;
-      window.open(`https://api.whatsapp.com/send?phone=${state.config.phone.replace(/\D/g,'')}&text=${encodeURIComponent(msg)}`, '_blank');
-      state.cart = []; saveCart(); window.location.reload();
+      let msg = `🟢 *NOVO PEDIDO - GARRAFINHA DO MANCHA*\n\n👤 *Cliente:* ${name}\n💳 *Pagamento:* ${payment}\n🛵 *Tipo:* ${state.deliveryType}\n`;
+      if (state.deliveryType === 'Entrega') msg += `🏠 *Endereço:* ${address}\n`;
+      msg += `\n📝 *ITENS:*\n` + state.cart.map(i => `- ${i.qty}x ${i.name}${i.obs ? ` _(${i.obs})_` : ''}`).join("\n");
+      msg += `\n\n💰 *TOTAL: ${total}*`;
+
+      const whatsappUrl = `https://api.whatsapp.com/send?phone=${state.config.phone.replace(/\D/g,'')}&text=${encodeURIComponent(msg)}`;
+      
+      // Limpar carrinho e fechar modal antes de redirecionar
+      state.cart = [];
+      saveCart();
+      window.renderCart();
+      window.toggleCart(false);
+      window.toast("Pedido finalizado com sucesso!");
+
+      // Pequeno delay para garantir que o usuário veja o feedback antes de mudar de app
+      setTimeout(() => {
+        window.location.href = whatsappUrl;
+        // Restaurar botão para caso o usuário volte à aba
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        window.refreshIcons();
+      }, 800);
     };
 
     window.saveConfigSafe = async (partial) => {
