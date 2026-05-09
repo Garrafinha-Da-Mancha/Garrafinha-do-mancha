@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-PT">
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
@@ -164,8 +164,16 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    .safe-pb { padding-bottom: env(safe-area-inset-bottom); }
-    .safe-pt { padding-top: env(safe-area-inset-top); }
+    .safe-pb {
+      padding-bottom: 0px;
+      padding-bottom: constant(safe-area-inset-bottom);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    .safe-pt {
+      padding-top: 0px;
+      padding-top: constant(safe-area-inset-top);
+      padding-top: env(safe-area-inset-top, 0px);
+    }
 
     /* MARCA D'ÁGUA */
     .watermark-footer {
@@ -239,6 +247,51 @@
         opacity: 0.5;
         cursor: not-allowed;
         background-color: #f8fafc;
+    }
+
+    /* ── COMPATIBILIDADE MOBILE (iOS & Android) ── */
+
+    /* Remove delay de 300ms em taps em todos os elementos interativos */
+    button, a, label, [onclick] {
+      touch-action: manipulation;
+    }
+
+    /* iOS Safari: previne zoom automático em inputs com font-size < 16px */
+    @media screen and (max-width: 767px) {
+      input, select, textarea {
+        font-size: 16px !important;
+      }
+    }
+
+    /* iOS: remove aparência nativa dos inputs para que o Tailwind seja respeitado */
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="number"],
+    input[type="url"],
+    input[type="tel"],
+    input[type="search"],
+    textarea {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+    }
+
+    /* iOS: previne menu de toque longo em imagens */
+    img {
+      -webkit-touch-callout: none;
+    }
+
+    /* iOS Safari: altura real da tela (evita o espaço da barra de endereço) */
+    .app-container {
+      min-height: -webkit-fill-available;
+      min-height: 100dvh;
+    }
+
+    /* iOS: altura do modal com viewport dinâmico */
+    #acai-modal .bg-white {
+      max-height: 90vh;
+      max-height: 90dvh;
     }
   </style>
 </head>
@@ -376,7 +429,7 @@
           <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><i data-lucide="user" class="w-4 h-4 text-japa-red"></i> Seus Dados</h3>
           <div class="space-y-3">
             <input id="client-name" class="w-full p-4 bg-slate-50 rounded-2xl text-sm font-bold border-2 border-transparent focus:border-brand-500/20 focus:bg-white outline-none transition-all" placeholder="Nome Completo" oninput="window.saveFormData(); window.validateCheckout()">
-            <input id="client-phone" class="w-full p-4 bg-slate-50 rounded-2xl text-sm font-bold border-2 border-transparent focus:border-brand-500/20 focus:bg-white outline-none transition-all" placeholder="WhatsApp" maxlength="15">
+            <input id="client-phone" inputmode="tel" class="w-full p-4 bg-slate-50 rounded-2xl text-sm font-bold border-2 border-transparent focus:border-brand-500/20 focus:bg-white outline-none transition-all" placeholder="WhatsApp" maxlength="15">
           </div>
         </div>
 
@@ -548,7 +601,7 @@
             <input id="new-prod-name" placeholder="Nome (ex: Nutella 200ml)" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-brand-300 transition-all">
             <input id="new-prod-desc" placeholder="Descrição curta" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-brand-300 transition-all">
             <div class="flex gap-2">
-              <input id="new-prod-price" type="number" step="0.01" placeholder="R$ Preço" class="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-brand-300 transition-all">
+              <input id="new-prod-price" type="number" step="0.01" inputmode="decimal" placeholder="R$ Preço" class="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-brand-300 transition-all">
               <button onclick="window.addProduct()" class="px-5 py-3 bg-brand-600 text-white rounded-xl text-xs font-black active:scale-95 transition-all shadow-md flex items-center gap-1.5">
                 <i data-lucide="plus" class="w-4 h-4"></i> Salvar
               </button>
@@ -576,7 +629,7 @@
             <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Adicionar Novo Complemento</p>
             <input id="new-ing-name" placeholder="Nome (ex: Granola)" class="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-brand-300 transition-all">
             <div class="flex gap-2">
-              <input id="new-ing-price" type="number" step="0.01" placeholder="R$ Preço" class="flex-1 p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-brand-300 transition-all">
+              <input id="new-ing-price" type="number" step="0.01" inputmode="decimal" placeholder="R$ Preço" class="flex-1 p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-brand-300 transition-all">
               <select id="new-ing-type" class="flex-1 p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-brand-300 transition-all">
                 <option value="complementos">Complemento</option>
                 <option value="adicionais">Adicional (extra)</option>
@@ -692,12 +745,12 @@
           <div class="flex gap-3 items-center">
             <div class="flex-1">
               <label class="text-[10px] font-black text-slate-400 uppercase">Abre às</label>
-              <input id="cfg-hour-open" type="number" min="0" max="23" placeholder="13" class="w-full mt-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-brand-300 text-center">
+              <input id="cfg-hour-open" type="number" min="0" max="23" inputmode="numeric" placeholder="13" class="w-full mt-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-brand-300 text-center">
             </div>
             <span class="text-slate-300 font-black mt-5">—</span>
             <div class="flex-1">
               <label class="text-[10px] font-black text-slate-400 uppercase">Fecha às</label>
-              <input id="cfg-hour-close" type="number" min="0" max="23" placeholder="23" class="w-full mt-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-brand-300 text-center">
+              <input id="cfg-hour-close" type="number" min="0" max="23" inputmode="numeric" placeholder="23" class="w-full mt-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-brand-300 text-center">
             </div>
           </div>
         </div>
@@ -708,7 +761,7 @@
             <div class="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center"><i data-lucide="message-circle" class="w-4 h-4 text-green-600"></i></div>
             <h3 class="text-sm font-black text-brand-700 uppercase tracking-wide">WhatsApp do Pedido</h3>
           </div>
-          <input id="cfg-phone" placeholder="Ex: 5579988565654" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-green-300 transition-all">
+          <input id="cfg-phone" inputmode="tel" placeholder="Ex: 5579988565654" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-green-300 transition-all">
           <p class="text-[10px] text-slate-400 mt-2 font-medium">Inclua o código do país (55) + DDD + número</p>
         </div>
 
@@ -748,7 +801,7 @@
               <input id="zone-name" placeholder="Nome do bairro" class="flex-1 p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-brand-300 transition-all">
               <div class="relative">
                 <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">R$</span>
-                <input id="zone-price" type="number" step="0.50" min="0" placeholder="0,00" class="w-20 pl-7 p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-brand-300 transition-all">
+                <input id="zone-price" type="number" step="0.50" min="0" inputmode="decimal" placeholder="0,00" class="w-20 pl-7 p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-brand-300 transition-all">
               </div>
               <button onclick="window.addZone()" class="px-3 py-2.5 bg-orange-500 text-white rounded-xl text-xs font-black active:scale-95 transition-all shrink-0">
                 <i data-lucide="plus" class="w-4 h-4"></i>
@@ -871,7 +924,23 @@
         posts: [{ id: 1, title: 'Seja bem-vindo!', message: 'O melhor açaí da região, montado do seu jeito.', image: '', date: new Date().toISOString() }],
         pixKey: "57970392000139",
         pixName: "Gabriel Santana Morais",
-        zones: [{name: "Retirada Balcão", price: 0}, {name: "Bairros Próximos", price: 5.00}]
+        zones: [
+          {name: "Porto Dantas", price: 0},
+          {name: "Coqueiral", price: 0},
+          {name: "Bairro industrial", price: 2},
+          {name: "Japãozinho", price: 3},
+          {name: "Santo Antônio", price: 3},
+          {name: "Palestina", price: 4},
+          {name: "Centro", price: 5},
+          {name: "Marcos freire 2", price: 5},
+          {name: "Lamarão", price: 6},
+          {name: "Barra Dos Coqueiros", price: 7},
+          {name: "Marcos freire 3", price: 7},
+          {name: "Fernando colo", price: 7},
+          {name: "João Alves", price: 7},
+          {name: "Albano Franco", price: 7},
+          {name: "Santos Dumont", price: 7}
+        ]
       },
       selectedItems: new Set(),
       qty: 1,
@@ -926,10 +995,12 @@
         window.renderCart();
         back.classList.remove('invisible', 'opacity-0');
         drawer.classList.remove('translate-x-full');
+        document.body.style.overflow = 'hidden';
       } else {
         back.classList.add('opacity-0');
         drawer.classList.add('translate-x-full');
         setTimeout(() => back.classList.add('invisible'), 300);
+        document.body.style.overflow = '';
       }
     };
 
@@ -1113,9 +1184,26 @@
     };
 
     window.copyPix = () => {
-      const k = document.getElementById('pix-key');
-      k.select(); document.execCommand('copy'); window.toast("Copiado!");
+      const text = document.getElementById('pix-key').value;
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text)
+          .then(() => window.toast("Copiado!"))
+          .catch(() => _fallbackCopy(text));
+      } else {
+        _fallbackCopy(text);
+      }
     };
+
+    function _fallbackCopy(text) {
+      const el = document.createElement('textarea');
+      el.value = text;
+      el.style.cssText = 'position:fixed;opacity:0;pointer-events:none;';
+      document.body.appendChild(el);
+      el.focus(); el.select();
+      try { document.execCommand('copy'); window.toast("Copiado!"); }
+      catch { window.toast("Copie manualmente", "error"); }
+      document.body.removeChild(el);
+    }
 
     window.handlePostImage = (input) => {
       const file = input.files[0];
@@ -1175,11 +1263,15 @@
         if (acc.adicionais && acc.adicionais.length > 0) container.innerHTML += renderSection("Extras", acc.adicionais, "adicionais");
         if (acc.coberturas && acc.coberturas.length > 0) container.innerHTML += renderSection("Caldas & Coberturas", acc.coberturas, "coberturas");
         document.getElementById('acai-modal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
         window.recalcAcaiModalTotal();
         window.refreshIcons();
     };
 
-    window.closeAcaiModal = () => document.getElementById('acai-modal').classList.add('hidden');
+    window.closeAcaiModal = () => {
+        document.getElementById('acai-modal').classList.add('hidden');
+        document.body.style.overflow = '';
+    };
 
     window.checkBuilderLimits = (checkbox) => {
         const checkboxes = document.querySelectorAll('.limit-global');
@@ -1400,7 +1492,14 @@
             window.toast("Login efetuado!");
             document.getElementById('admin-modal').classList.add('hidden');
             window.switchAdminTab('estoque');
-        } catch(e) { window.toast("Erro no Login", "error"); }
+        } catch(e) {
+            const code = e.code || '';
+            if (code.includes('popup-blocked') || code.includes('popup-closed') || code.includes('cancelled-popup')) {
+                window.toast("Popup bloqueado. Use e-mail/senha.", "error");
+            } else {
+                window.toast("Erro no Login", "error");
+            }
+        }
     };
 
     window.adminLogout = async () => {
@@ -1688,7 +1787,23 @@
     window.saveFormData = () => localStorage.setItem('acai_form_data', JSON.stringify({ name: document.getElementById('client-name').value, phone: document.getElementById('client-phone').value, address: document.getElementById('client-address').value }));
     
     window.onload = () => {
-      const saved = localStorage.getItem("acai_config_v2"); if (saved) state.config = JSON.parse(saved);
+      const saved = localStorage.getItem("acai_config_v2");
+      if (saved) {
+          state.config = JSON.parse(saved);
+          if (state.config.zones && state.config.zones.length <= 2) {
+              state.config.zones = [
+                  {name: "Porto Dantas", price: 0}, {name: "Coqueiral", price: 0},
+                  {name: "Bairro industrial", price: 2}, {name: "Japãozinho", price: 3},
+                  {name: "Santo Antônio", price: 3}, {name: "Palestina", price: 4},
+                  {name: "Centro", price: 5}, {name: "Marcos freire 2", price: 5},
+                  {name: "Lamarão", price: 6}, {name: "Barra Dos Coqueiros", price: 7},
+                  {name: "Marcos freire 3", price: 7}, {name: "Fernando colo", price: 7},
+                  {name: "João Alves", price: 7}, {name: "Albano Franco", price: 7},
+                  {name: "Santos Dumont", price: 7}
+              ];
+              localStorage.setItem("acai_config_v2", JSON.stringify(state.config));
+          }
+      }
       const cart = localStorage.getItem('acai_cart_v2'); if (cart) state.cart = JSON.parse(cart);
       const form = localStorage.getItem('acai_form_data'); 
       if (form) { const d = JSON.parse(form); document.getElementById('client-name').value = d.name; document.getElementById('client-phone').value = d.phone; document.getElementById('client-address').value = d.address; }
