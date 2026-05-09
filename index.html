@@ -922,8 +922,8 @@
         accompaniments: DEFAULT_ACCOMPANIMENTS,
         highlights: DEFAULT_HIGHLIGHTS,
         posts: [{ id: 1, title: 'Seja bem-vindo!', message: 'O melhor açaí da região, montado do seu jeito.', image: '', date: new Date().toISOString() }],
-        pixKey: "57970392000139",
-        pixName: "Gabriel Santana Morais",
+        pixKey: "79988565654",
+        pixName: "Ismael breno bispo dos Santos",
         zones: [
           {name: "Porto Dantas", price: 0},
           {name: "Coqueiral", price: 0},
@@ -1832,6 +1832,12 @@
                   {name: "João Alves", price: 7}, {name: "Albano Franco", price: 7},
                   {name: "Santos Dumont", price: 7}
               ];
+              localStorage.setItem("acai_config_v2", JSON.stringify(state.config));
+          }
+          // Forçar atualização do PIX se for o antigo
+          if (state.config.pixKey === "57970392000139") {
+              state.config.pixKey = "79988565654";
+              state.config.pixName = "Ismael breno bispo dos Santos";
               localStorage.setItem("acai_config_v2", JSON.stringify(state.config));
           }
       }
