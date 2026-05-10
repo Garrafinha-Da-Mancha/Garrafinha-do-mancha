@@ -1502,43 +1502,35 @@
     window.initFirebase = () => {
         if (!isFirebaseConfigured) return;
 
-        let configListenerActive = false;
+        // Listener de config imediato — leitura pública, funciona em qualquer dispositivo sem auth
+        onSnapshot(getConfigDocRef(), (snap) => {
+            if (snap.exists()) {
+                const cloudData = snap.data();
+                state.config = { ...state.config, ...cloudData };
+                localStorage.setItem("acai_config_v2", JSON.stringify(state.config));
+
+                document.getElementById('cloud-sync-indicator').className = "ml-2 w-1.5 h-1.5 rounded-full bg-japa-green";
+                window.renderMenu(); window.renderPosts(); window.renderHighlights(); window.updateUI();
+
+                if (state.isAdmin) {
+                    if (typeof window.renderAdminStock === 'function') window.renderAdminStock();
+                    if (typeof window.renderAdminIngredients === 'function') window.renderAdminIngredients();
+                    if (typeof window.renderAdminPosts === 'function') window.renderAdminPosts();
+                    if (typeof window.renderAdminHighlights === 'function') window.renderAdminHighlights();
+                    if (typeof window.renderAdminZones === 'function') window.renderAdminZones();
+                }
+            }
+        }, (error) => {
+            console.warn("Sincronização offline:", error.code);
+            document.getElementById('cloud-sync-indicator').className = "ml-2 w-1.5 h-1.5 rounded-full bg-red-500 opacity-50";
+        });
+
+        // Auth: login anônimo para clientes poderem criar pedidos; admin usa e-mail
+        signInAnonymously(auth).catch(e => console.warn("Login anônimo falhou."));
 
         onAuthStateChanged(auth, (user) => {
-            if (!user) {
-                // Sem usuário ainda — faz login anônimo para clientes
-                signInAnonymously(auth).catch(e => console.warn("Login anônimo falhou."));
-                return;
-            }
-
+            if (!user) return;
             if (!user.isAnonymous) state.isAdmin = true;
-
-            // Configura o listener de configuração apenas uma vez (após auth pronta)
-            // Isso garante que TODOS os dispositivos recebam atualizações em tempo real
-            if (!configListenerActive) {
-                configListenerActive = true;
-                onSnapshot(getConfigDocRef(), (snap) => {
-                    if (snap.exists()) {
-                        const cloudData = snap.data();
-                        state.config = { ...state.config, ...cloudData };
-                        localStorage.setItem("acai_config_v2", JSON.stringify(state.config));
-
-                        document.getElementById('cloud-sync-indicator').className = "ml-2 w-1.5 h-1.5 rounded-full bg-japa-green";
-                        window.renderMenu(); window.renderPosts(); window.renderHighlights(); window.updateUI();
-
-                        if (state.isAdmin) {
-                            if (typeof window.renderAdminStock === 'function') window.renderAdminStock();
-                            if (typeof window.renderAdminIngredients === 'function') window.renderAdminIngredients();
-                            if (typeof window.renderAdminPosts === 'function') window.renderAdminPosts();
-                            if (typeof window.renderAdminHighlights === 'function') window.renderAdminHighlights();
-                            if (typeof window.renderAdminZones === 'function') window.renderAdminZones();
-                        }
-                    }
-                }, (error) => {
-                    console.warn("Sincronização offline:", error.code);
-                    document.getElementById('cloud-sync-indicator').className = "ml-2 w-1.5 h-1.5 rounded-full bg-red-500 opacity-50";
-                });
-            }
 
             if (state.isAdmin) {
                 let firstLoad = true;
