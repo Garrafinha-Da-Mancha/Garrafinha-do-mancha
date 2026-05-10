@@ -1575,12 +1575,12 @@
             else banner.classList.add('hidden');
         }
 
-        // Desativar botões de adicionar e finalizar (Apenas para não-admins)
+        // Desativar botões de adicionar e finalizar (PARA TODOS, para evitar confusão)
         const btnViewCart = document.getElementById('btn-view-cart');
         const btnCheckout = document.getElementById('btn-checkout');
         const floatingWa = document.querySelector('button[onclick="window.openChat()"]');
 
-        if (!open && !state.isAdmin) {
+        if (!open) {
             if (btnViewCart) {
                 btnViewCart.disabled = true;
                 btnViewCart.classList.add('grayscale', 'opacity-50');
