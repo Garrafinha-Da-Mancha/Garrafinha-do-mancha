@@ -1466,11 +1466,25 @@
     };
 
     window.saveConfigSafe = async (partial) => {
+      const oldConfig = JSON.stringify(state.config);
       state.config = { ...state.config, ...partial };
       localStorage.setItem("acai_config_v2", JSON.stringify(state.config));
-      window.renderMenu(); window.renderPosts(); window.renderHighlights();
-      if (isFirebaseConfigured && (state.isAdmin || (auth.currentUser && !auth.currentUser.isAnonymous))) {
-          try { await setDoc(getConfigDocRef(), state.config, { merge: true }); } catch(e) { console.warn("Erro ao salvar no Firebase:", e); }
+      
+      // Renderizar localmente para feedback imediato
+      window.renderMenu(); window.renderPosts(); window.renderHighlights(); window.updateUI();
+      
+      if (isFirebaseConfigured) {
+          // Se for admin, tenta salvar no Firebase
+          if (state.isAdmin || (auth.currentUser && !auth.currentUser.isAnonymous)) {
+              try { 
+                  await setDoc(getConfigDocRef(), state.config, { merge: true }); 
+                  console.log("Sincronizado com Firebase");
+              } catch(e) { 
+                  console.error("Erro ao sincronizar:", e);
+                  window.toast("Erro ao sincronizar com outros dispositivos!", "error");
+                  // Reverter estado local se falhar? Opcional, mas vamos manter por enquanto
+              }
+          }
       }
     };
 
@@ -1540,21 +1554,25 @@
         const em = document.getElementById('adm-email').value;
         const pw = document.getElementById('adm-pass').value;
         
-        // Acesso direto de segurança caso o Firebase não esteja criado
-        if (em === 'garrafinhadomancha@gmail.com' && pw === 'garrafinhadomancha2026') {
-            state.isAdmin = true;
-            window.toast("Login efetuado!");
-            document.getElementById('admin-modal').classList.add('hidden');
-            window.switchAdminTab('estoque');
-            return;
-        }
-
         try {
-            await signInWithEmailAndPassword(auth, em, pw);
-            window.toast("Login efetuado!");
-            document.getElementById('admin-modal').classList.add('hidden');
-            window.switchAdminTab('estoque');
-        } catch(e) { window.toast("Erro no Login", "error"); }
+            const result = await signInWithEmailAndPassword(auth, em, pw);
+            if (result.user) {
+                state.isAdmin = true;
+                window.toast("Login efetuado!");
+                document.getElementById('admin-modal').classList.add('hidden');
+                window.switchAdminTab('estoque');
+            }
+        } catch(e) { 
+            // Fallback para login hardcoded caso o Firebase falhe ou não tenha o usuário
+            if (em === 'garrafinhadomancha@gmail.com' && pw === 'garrafinhadomancha2026') {
+                state.isAdmin = true;
+                window.toast("Login (Emergência) efetuado!");
+                document.getElementById('admin-modal').classList.add('hidden');
+                window.switchAdminTab('estoque');
+            } else {
+                window.toast("Erro no Login: Credenciais inválidas", "error");
+            }
+        }
     };
 
     window.loginGoogle = async () => {
