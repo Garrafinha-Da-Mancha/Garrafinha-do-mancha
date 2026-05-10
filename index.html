@@ -337,6 +337,7 @@
             <div class="flex items-center gap-1">
               <span id="status-dot" class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
               <p id="status-text" class="text-[10px] font-bold uppercase tracking-wider text-slate-300">Conectando...</p>
+              <span id="cloud-sync-indicator" class="ml-2 w-1.5 h-1.5 rounded-full bg-red-500 opacity-50" title="Sincronização com a nuvem"></span>
             </div>
           </div>
         </div>
@@ -373,6 +374,19 @@
           <i data-lucide="search" class="w-5 h-5 text-slate-400 group-focus-within:text-brand-700 transition-colors"></i>
         </div>
         <input type="text" id="search-input" onkeyup="window.renderMenu()" placeholder="Qual o seu desejo de hoje?" class="w-full pl-12 pr-4 py-4 bg-white rounded-2xl border border-slate-200 shadow-soft text-sm font-semibold placeholder:text-slate-400 focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500/50 outline-none transition-all">
+      </div>
+
+      <!-- AVISO DE LOJA FECHADA -->
+      <div id="closed-banner" class="hidden animate-slide-up">
+        <div class="bg-red-50 border border-red-100 p-4 rounded-2xl flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-red-500 text-white flex items-center justify-center shrink-0 shadow-md animate-pulse">
+            <i data-lucide="clock-off" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <p class="text-xs font-black text-red-600 uppercase tracking-widest">Loja Fechada no Momento</p>
+            <p class="text-[10px] text-red-400 font-medium">Não estamos aceitando pedidos agora.</p>
+          </div>
+        </div>
       </div>
 
       <div id="products-grid" class="grid grid-cols-1 gap-4 pb-10"></div>
@@ -845,25 +859,6 @@
   <div id="toast" class="fixed top-6 left-1/2 -translate-x-1/2 bg-brand-700/90 backdrop-blur-md text-white px-6 py-4 rounded-full shadow-2xl opacity-0 pointer-events-none z-[110] transition-all duration-500 transform -translate-y-20 flex items-center gap-3 justify-center">
     <div class="w-2 h-2 bg-japa-green rounded-full animate-pulse"></div>
     <span class="text-xs font-bold tracking-wide" id="toast-msg">Sucesso</span>
-  </div>
-
-  <!-- OVERLAY DE FECHADO -->
-  <div id="closed-overlay" class="fixed inset-0 z-[200] bg-brand-900/95 backdrop-blur-xl hidden flex flex-col items-center justify-center p-8 text-center">
-    <div class="relative mb-8">
-      <div class="absolute inset-0 bg-red-500/20 blur-3xl rounded-full"></div>
-      <div class="w-32 h-32 rounded-full bg-white flex items-center justify-center border-4 border-red-500 shadow-2xl relative z-10 animate-pulse">
-        <i data-lucide="clock-off" class="w-16 h-16 text-red-500"></i>
-      </div>
-    </div>
-    <h2 class="font-display font-black text-3xl text-white mb-2">Loja Fechada</h2>
-    <p class="text-brand-100 text-lg mb-8 max-w-xs">No momento não estamos aceitando novos pedidos. Confira nosso horário de funcionamento!</p>
-    <div class="bg-white/10 border border-white/20 rounded-3xl p-6 w-full max-w-sm">
-      <p class="text-xs font-black text-accent-yellow uppercase tracking-widest mb-3">Horário de Funcionamento</p>
-      <p class="text-white font-bold text-xl" id="closed-hours-display">13:00 às 23:00</p>
-    </div>
-    <button onclick="window.handleAdminClick()" class="mt-12 text-white/40 text-[10px] font-bold hover:text-white uppercase tracking-widest transition-colors flex items-center gap-2">
-        <i data-lucide="lock" class="w-3 h-3"></i> Área Administrativa
-    </button>
   </div>
 
   <script type="module">
@@ -1490,18 +1485,16 @@
       localStorage.setItem("acai_config_v2", JSON.stringify(state.config));
       window.renderMenu(); window.renderPosts(); window.renderHighlights(); window.updateUI();
       
-      if (isFirebaseConfigured && (state.isAdmin || (auth.currentUser && !auth.currentUser.isAnonymous))) {
+      if (isFirebaseConfigured) {
           try { 
-              // Feedback de "Salvando..."
-              const originalToast = document.getElementById('toast-msg').innerText;
-              if (partial.statusMode) window.toast("Sincronizando status...", "info");
-
               await setDoc(getConfigDocRef(), state.config, { merge: true }); 
-              
-              if (partial.statusMode) window.toast("Status atualizado para todos!", "success");
+              document.getElementById('cloud-sync-indicator').className = "ml-2 w-1.5 h-1.5 rounded-full bg-japa-green";
           } catch(e) { 
               console.warn("Erro ao salvar na nuvem:", e);
-              window.toast("Nota: Alteração salva apenas neste dispositivo. Verifique seu login.", "warning");
+              document.getElementById('cloud-sync-indicator').className = "ml-2 w-1.5 h-1.5 rounded-full bg-red-500";
+              if (partial.statusMode) {
+                  window.toast("ERRO: Não sincronizou com outros aparelhos. Logue como Admin!", "error");
+              }
           }
       }
     };
@@ -1520,6 +1513,7 @@
                 state.config = { ...state.config, ...cloudData };
                 localStorage.setItem("acai_config_v2", JSON.stringify(state.config));
                 
+                document.getElementById('cloud-sync-indicator').className = "ml-2 w-1.5 h-1.5 rounded-full bg-japa-green";
                 window.renderMenu(); window.renderPosts(); window.renderHighlights(); window.updateUI();
                 
                 if (state.isAdmin) {
@@ -1530,7 +1524,10 @@
                     if (typeof window.renderAdminZones === 'function') window.renderAdminZones();
                 }
             }
-        }, (error) => console.warn("Sincronização em segundo plano offline."));
+        }, (error) => {
+            console.warn("Sincronização offline.");
+            document.getElementById('cloud-sync-indicator').className = "ml-2 w-1.5 h-1.5 rounded-full bg-red-500 opacity-50";
+        });
 
         onAuthStateChanged(auth, (user) => {
             if (!user) return;
@@ -1571,24 +1568,38 @@
         if (text) text.innerText = open ? "Aberto Agora" : "Fechado";
         if (dot) dot.className = `w-1.5 h-1.5 rounded-full ${open ? 'bg-japa-green' : 'bg-red-500'}`;
 
-        // Overlay Global de Fechado
-        const overlay = document.getElementById('closed-overlay');
-        const hoursDisplay = document.getElementById('closed-hours-display');
-        
-        if (overlay) {
-            if (!open && !state.isAdmin) {
-                overlay.classList.remove('hidden');
-                if (hoursDisplay) hoursDisplay.innerText = `${hours.start}:00 às ${hours.end}:00`;
-                document.body.style.overflow = 'hidden';
-            } else {
-                overlay.classList.add('hidden');
-                if (!document.getElementById('cart-drawer').classList.contains('translate-x-full')) {
-                    // Mantenha o overflow hidden se o carrinho estiver aberto
-                } else {
-                    document.body.style.overflow = '';
-                }
-            }
+        // Banner de Loja Fechada (MOSTRAR PARA TODOS, inclusive Admin, para confirmar que funcionou)
+        const banner = document.getElementById('closed-banner');
+        if (banner) {
+            if (!open) banner.classList.remove('hidden');
+            else banner.classList.add('hidden');
         }
+
+        // Desativar botões de adicionar e finalizar (Apenas para não-admins)
+        const btnViewCart = document.getElementById('btn-view-cart');
+        const btnCheckout = document.getElementById('btn-checkout');
+        const floatingWa = document.querySelector('button[onclick="window.openChat()"]');
+
+        if (!open && !state.isAdmin) {
+            if (btnViewCart) {
+                btnViewCart.disabled = true;
+                btnViewCart.classList.add('grayscale', 'opacity-50');
+            }
+            if (btnCheckout) {
+                btnCheckout.disabled = true;
+                btnCheckout.classList.add('grayscale', 'opacity-50');
+            }
+            if (floatingWa) floatingWa.classList.add('grayscale', 'opacity-50');
+        } else {
+            if (btnViewCart) {
+                btnViewCart.disabled = (state.cart.length === 0);
+                btnViewCart.classList.remove('grayscale', 'opacity-50');
+            }
+            if (btnCheckout) btnCheckout.classList.remove('grayscale', 'opacity-50');
+            if (floatingWa) floatingWa.classList.remove('grayscale', 'opacity-50');
+        }
+
+        window.renderMenu();
         window.refreshIcons();
     };
 
@@ -2027,9 +2038,19 @@
     };
 
     window.setStatus = async (mode) => {
+        // Tenta salvar na nuvem com feedback visual
+        window.toast("Sincronizando com todos os aparelhos...", "info");
         await window.saveConfigSafe({ statusMode: mode });
+        
+        // Verifica se o ponto de sincronização ficou verde
+        const syncOk = document.getElementById('cloud-sync-indicator').classList.contains('bg-japa-green');
+        if (syncOk) {
+            window.toast("Fechado com sucesso para TODOS!", "success");
+        } else {
+            window.toast("ERRO: O celular não recebeu o comando. Logue como Admin no Computador!", "error");
+        }
+        
         window.switchAdminTab('config');
-        window.toast("Status atualizado");
     };
 
     // ===== GESTAO DE PEDIDOS =====
