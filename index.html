@@ -1466,85 +1466,68 @@
     };
 
     window.saveConfigSafe = async (partial) => {
+      // Atualiza localmente primeiro para ser instantâneo
       state.config = { ...state.config, ...partial };
       localStorage.setItem("acai_config_v2", JSON.stringify(state.config));
-      
-      // Renderizar localmente para feedback imediato
       window.renderMenu(); window.renderPosts(); window.renderHighlights(); window.updateUI();
       
-      if (isFirebaseConfigured) {
-          // Se for admin OU se houver qualquer usuário logado (mesmo anônimo), tenta salvar
-          // Nota: As regras de segurança do Firestore devem permitir isso.
+      if (isFirebaseConfigured && (state.isAdmin || (auth.currentUser && !auth.currentUser.isAnonymous))) {
           try { 
               await setDoc(getConfigDocRef(), state.config, { merge: true }); 
-              console.log("Sucesso no Firebase");
           } catch(e) { 
-              console.error("Erro ao sincronizar:", e);
-              window.toast("Falha ao enviar para nuvem. Verifique sua internet.", "error");
+              console.warn("Erro ao salvar na nuvem:", e);
+              window.toast("Nota: Alteração salva apenas neste dispositivo.", "warning");
           }
       }
     };
 
-    window.initFirebase = async () => {
+    window.initFirebase = () => {
         if (!isFirebaseConfigured) return;
-        try {
-            // 1. Primeiro se identifica (Essencial para permissão no celular)
-            if (!auth.currentUser) {
-                await signInAnonymously(auth);
-            }
+        
+        // Login anônimo em segundo plano (não trava o site)
+        signInAnonymously(auth).catch(e => console.warn("Login anônimo falhou."));
 
-            // 2. Agora começa a ouvir o banco de dados
-            onSnapshot(getConfigDocRef(), (snap) => {
-                if (snap.exists()) {
-                    const data = snap.data();
-                    state.config = data;
-                    localStorage.setItem("acai_config_v2", JSON.stringify(state.config));
-                    window.renderMenu(); window.renderPosts(); window.renderHighlights(); window.updateUI();
-                    
-                    if (!window._firstSyncDone) {
-                        window.toast("Sincronizado com a Nuvem! ☁️");
-                        window._firstSyncDone = true;
-                    }
-
-                    if (state.isAdmin) {
-                        if (typeof window.renderAdminStock === 'function') window.renderAdminStock();
-                        if (typeof window.renderAdminIngredients === 'function') window.renderAdminIngredients();
-                        if (typeof window.renderAdminPosts === 'function') window.renderAdminPosts();
-                        if (typeof window.renderAdminHighlights === 'function') window.renderAdminHighlights();
-                        if (typeof window.renderAdminZones === 'function') window.renderAdminZones();
-                    }
-                }
-            }, (error) => {
-                console.error("Erro Firestore:", error);
-                // Se der erro de permissão, tentamos logar novamente
-                if (error.code === 'permission-denied') { signInAnonymously(auth); }
-                window.toast("Falha na conexão em tempo real!", "error");
-            });
-
-            // 3. Autenticação e Pedidos
-            onAuthStateChanged(auth, (user) => {
-                if (!user) return;
-                if (!user.isAnonymous) state.isAdmin = true;
-
+        // Escuta as mudanças (sem travar o carregamento inicial)
+        onSnapshot(getConfigDocRef(), (snap) => {
+            if (snap.exists()) {
+                const cloudData = snap.data();
+                // Mescla os dados da nuvem com os locais, preservando o que já existe
+                state.config = { ...state.config, ...cloudData };
+                localStorage.setItem("acai_config_v2", JSON.stringify(state.config));
+                
+                window.renderMenu(); window.renderPosts(); window.renderHighlights(); window.updateUI();
+                
                 if (state.isAdmin) {
-                    let firstLoad = true;
-                    import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js").then(({ collection, query, orderBy, onSnapshot: snap2, limit }) => {
-                        const q = query(collection(db, 'pedidos'), orderBy('createdAt', 'desc'), limit(50));
-                        snap2(q, (snapshot) => {
-                            const newOrders = snapshot.docs.map(d => ({...d.data(), _docId: d.id}));
-                            if (!firstLoad && newOrders.length > (state.orders || []).length) {
-                                const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-                                audio.play().catch(e => {});
-                                window.toast("🔔 Novo pedido recebido!");
-                            }
-                            state.orders = newOrders;
-                            firstLoad = false;
-                            window.renderAdminOrders();
-                        });
-                    });
+                    if (typeof window.renderAdminStock === 'function') window.renderAdminStock();
+                    if (typeof window.renderAdminIngredients === 'function') window.renderAdminIngredients();
+                    if (typeof window.renderAdminPosts === 'function') window.renderAdminPosts();
+                    if (typeof window.renderAdminHighlights === 'function') window.renderAdminHighlights();
+                    if (typeof window.renderAdminZones === 'function') window.renderAdminZones();
                 }
-            });
-        } catch (e) { console.error("Erro Firebase Init:", e); }
+            }
+        }, (error) => console.warn("Sincronização em segundo plano offline."));
+
+        onAuthStateChanged(auth, (user) => {
+            if (!user) return;
+            if (!user.isAnonymous) state.isAdmin = true;
+
+            if (state.isAdmin) {
+                let firstLoad = true;
+                import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js").then(({ collection, query, orderBy, onSnapshot: snap2, limit }) => {
+                    const q = query(collection(db, 'pedidos'), orderBy('createdAt', 'desc'), limit(50));
+                    snap2(q, (snapshot) => {
+                        const newOrders = snapshot.docs.map(d => ({...d.data(), _docId: d.id}));
+                        if (!firstLoad && newOrders.length > (state.orders || []).length) {
+                            new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3').play().catch(e=>{});
+                            window.toast("🔔 Novo pedido recebido!");
+                        }
+                        state.orders = newOrders;
+                        firstLoad = false;
+                        window.renderAdminOrders();
+                    });
+                });
+            }
+        });
     };
 
     window.updateUI = () => {
