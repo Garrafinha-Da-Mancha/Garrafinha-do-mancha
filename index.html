@@ -1488,7 +1488,12 @@
     window.initFirebase = async () => {
         if (!isFirebaseConfigured) return;
         try {
-            // Sincronizar configurações IMEDIATAMENTE
+            // 1. Primeiro se identifica (Essencial para permissão no celular)
+            if (!auth.currentUser) {
+                await signInAnonymously(auth);
+            }
+
+            // 2. Agora começa a ouvir o banco de dados
             onSnapshot(getConfigDocRef(), (snap) => {
                 if (snap.exists()) {
                     const data = snap.data();
@@ -1496,7 +1501,6 @@
                     localStorage.setItem("acai_config_v2", JSON.stringify(state.config));
                     window.renderMenu(); window.renderPosts(); window.renderHighlights(); window.updateUI();
                     
-                    // Notificação de sucesso na sincronização (apenas na primeira vez ou mudança externa)
                     if (!window._firstSyncDone) {
                         window.toast("Sincronizado com a Nuvem! ☁️");
                         window._firstSyncDone = true;
@@ -1512,12 +1516,12 @@
                 }
             }, (error) => {
                 console.error("Erro Firestore:", error);
+                // Se der erro de permissão, tentamos logar novamente
+                if (error.code === 'permission-denied') { signInAnonymously(auth); }
                 window.toast("Falha na conexão em tempo real!", "error");
             });
 
-            // Autenticação
-            if (!auth.currentUser) await signInAnonymously(auth);
-            
+            // 3. Autenticação e Pedidos
             onAuthStateChanged(auth, (user) => {
                 if (!user) return;
                 if (!user.isAnonymous) state.isAdmin = true;
